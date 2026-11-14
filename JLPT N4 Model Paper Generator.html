@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JLPT N4 Model Paper Generator</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f8f6f1;--card:#fff;--ink:#1f2430;--mute:#626b7a;--line:#dedbd2;--acc:#b23a48;--accink:#fff;--ok:#1d7a46;--okbg:#e4f4ea;--bad:#b3322b;--badbg:#fbe9e7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#15181e;--card:#1e232c;--ink:#e9ebef;--mute:#9ba3b1;--line:#333a47;--acc:#ef7f8c;--accink:#241013;--ok:#6fd49a;--okbg:#173324;--bad:#f08a82;--badbg:#3a1d1b}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#15181e;--card:#1e232c;--ink:#e9ebef;--mute:#9ba3b1;--line:#333a47;--acc:#ef7f8c;--accink:#241013;--ok:#6fd49a;--okbg:#173324;--bad:#f08a82;--badbg:#3a1d1b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Hiragino Sans","Yu Gothic","Noto Sans JP","Noto Sans CJK JP",system-ui,sans-serif}
+main{max-width:780px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.45rem;margin:0 0 2px}
+.sub{color:var(--mute);margin:0 0 16px;font-size:.9rem}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+button{font:inherit;cursor:pointer}
+.tab{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);white-space:nowrap}
+.tab.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--acc);color:var(--accink);border:0;border-radius:8px;padding:9px 16px;font-weight:600}
+.btn.alt{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.btn:disabled{opacity:.5;cursor:default}
+select{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.ctx{background:var(--bg);border-left:3px solid var(--acc);padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:12px;white-space:pre-wrap}
+.q{margin:14px 0 6px;font-weight:600}
+.opt{display:block;width:100%;text-align:left;margin-bottom:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.opt.pick{border-color:var(--acc);outline:2px solid var(--acc)}
+.opt.ok{background:var(--okbg);border-color:var(--ok);outline:0}
+.opt.bad{background:var(--badbg);border-color:var(--bad);outline:0}
+.exp{font-size:.9rem;color:var(--mute);margin:2px 0 8px}
+.msg{color:var(--mute)}.err{color:var(--bad)}
+.score{font-size:1.1rem;font-weight:700;margin-top:12px}
+.script{white-space:pre-wrap;margin-top:8px;font-size:.95rem}
+.timer{display:flex;gap:12px;align-items:center;font-variant-numeric:tabular-nums}
+.time{font-size:1.4rem;font-weight:700}.time.low{color:var(--bad)}
+.hist{display:flex;align-items:flex-end;gap:3px;height:48px;min-width:80px}.hist i{flex:1;background:var(--acc);border-radius:2px 2px 0 0;min-width:6px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:bottom}
+#paper{display:none;--bg:#fff;--ink:#000;--mute:#444;--line:#999;--acc:#000;--accink:#fff;background:#fff;color:#000;max-width:780px;margin:0 auto;padding:20px 16px}
+#paper h1{font-size:1.4rem}#paper h2{font-size:1.1rem;margin:20px 0 6px;border-bottom:1px solid #000}
+body.printing{background:#fff}body.printing main{display:none}body.printing #paper{display:block}
+#paper.q .key{display:none}#paper.k .qp{display:none}
+.key{page-break-before:always}.pq{margin:8px 0;break-inside:avoid}.po{margin-left:1.2em}
+@media print{.noprint{display:none!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<main>
+  <h1>JLPT N4 Model Paper Generator</h1>
+  <p class="sub">日本語能力試験 N4 · Original practice questions by section. Not an official paper; check against official samples.</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="card row">
+    <label>Length <select id="size"><option value="short">Short</option><option value="std" selected>Standard</option></select></label>
+    <button class="btn" id="gen">Generate this section</button>
+    <button class="btn alt" id="all">Generate full paper</button>
+    <button class="btn alt" id="prt">Print paper</button>
+    <span class="msg" id="status"></span>
+  </div>
+  <div id="timerbox"></div>
+  <div id="view"></div>
+</main>
+<div id="paper"></div>
+<script>
+const SEC = {
+  kanji:  {label:"Kanji 漢字",     n:{short:5,std:8},
+    p:n=>`Write ${n} questions in ONE group (context null). Mix: (a) choose the correct hiragana reading of the word marked with 【】 in a sentence; (b) choose the correct kanji for the hiragana word marked with 【】.`},
+  goi:    {label:"Goi 語彙",       n:{short:5,std:8},
+    p:n=>`Write ${n} questions in ONE group (context null). Mix: (a) contextual vocabulary, a sentence with ＿＿ to fill; (b) paraphrase, choose the sentence closest in meaning to the sentence with the word marked 【】.`},
+  bunpou: {label:"Bunpou 文法",    n:{short:5,std:8},
+    p:n=>`Write ${n} grammar questions in ONE group (context null). Each is a sentence with ＿＿; choose the best particle, verb form or N4 pattern (e.g. ～そうです, ～ようにする, ～てもいい, passive, causative, potential, ～たら, ～ば, ～ために).`},
+  dokkai: {label:"Dokkai 読解",    n:{short:1,std:2},
+    p:n=>`Write ${n} groups. Each group's "context" is a reading passage (a short email, notice or note of 100-250 characters) followed by 2 comprehension questions in Japanese.`},
+  kikitori:{label:"Kikitori 聴解", n:{short:3,std:5},
+    p:n=>`Write ${n} groups. Each group has a "script": a natural 2-6 line spoken dialogue (speakers "M" and "F") and context null, plus exactly 1 question in Japanese answerable only from the script (e.g. 男の人はこのあと何をしますか). Options in Japanese.`}
+};
+const HEAD = `You are a JLPT N4 exam item writer. Use only N4-level or easier vocabulary, grammar and kanji, with original content. Every question has exactly 4 options and one correct answer. Explanations are in English and short. Return ONLY a JSON array (no markdown) of groups: {"context": string|null, "script": [{"s":"M"|"F","t":string}]|null, "questions":[{"q":string,"options":[4 strings],"answer":0-3,"explanation":string}]}. `;
+let cur="kanji", data={}, sample=null;
+const $=id=>document.getElementById(id);
+function h(t,p,...k){const e=document.createElement(t);for(const a in (p||{})){if(a==="class")e.className=p[a];else if(a.startsWith("on"))e.addEventListener(a.slice(2),p[a]);else e.setAttribute(a,p[a]);}k.forEach(c=>e.append(c));return e;}
+
+function tabs(){const t=$("tabs");t.textContent="";
+  Object.keys(SEC).forEach(k=>t.append(h("button",{class:"tab"+(k===cur?" on":""),onclick:()=>{pauseAll();cur=k;tabs();view();}},SEC[k].label+(data[k]?" ✓":""))));
+  t.append(h("button",{class:"tab"+(cur==="progress"?" on":""),onclick:()=>{pauseAll();cur="progress";tabs();view();}},"Progress 📊"));}
+
+async function make(k){
+  if(!sample)throw new Error("The AI engine isn’t available in this view. Open the page signed in to claude.ai.");
+  const n=SEC[k].n[$("size").value];
+  const raw=await sample.json(HEAD+SEC[k].p(n),{cache:false});
+  const groups=(Array.isArray(raw)?raw:[]).map(g=>({context:g.context||null,script:Array.isArray(g.script)?g.script:null,
+    questions:(g.questions||[]).filter(q=>q&&q.q&&Array.isArray(q.options)&&q.options.length===4&&[0,1,2,3].includes(q.answer))})).filter(g=>g.questions.length);
+  if(!groups.length)throw new Error("No valid questions came back. Try again.");
+  const sz=$("size").value,secs=TIME[k][sz==="short"?0:1]*60;data[k]={groups,picks:{},checked:false,secs,left:secs,running:false,size:sz};
+}
+async function run(keys){
+  pauseAll();
+  $("gen").disabled=$("all").disabled=true;
+  try{for(const k of keys){$("status").textContent="Writing "+SEC[k].label+"…";$("status").className="msg";await make(k);cur=k;tabs();view();}
+    $("status").textContent="Done.";}
+  catch(e){$("status").textContent=(e&&e.message)||"Something went wrong.";$("status").className="err";}
+  finally{$("gen").disabled=$("all").disabled=false;}
+}
+
+function speak(script,times){
+  if(!("speechSynthesis"in window)){note("Speech isn’t supported in this browser. Use ‘Show script’.",1);return;}
+  speechSynthesis.cancel();
+  const vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().startsWith("ja"));
+  if(!vs.length)note("No Japanese voice found on this device. Use ‘Show script’, or install a Japanese voice.",1);
+  for(let r=0;r<times;r++)script.forEach(l=>{const u=new SpeechSynthesisUtterance(l.t);u.lang="ja-JP";if(vs[0])u.voice=vs[0];u.rate=.85;u.pitch=l.s==="F"?1.25:.8;speechSynthesis.speak(u);});
+}
+
+function view(){
+  const box=$("view");box.textContent="";const d=data[cur];
+  if(cur==="progress")return progressView(box);
+  timerUI();
+  if(!d){box.append(h("div",{class:"card msg"},"No questions yet for "+SEC[cur].label+". Press ‘Generate this section’."));return;}
+  let num=0,total=0,right=0;
+  d.groups.forEach((g,gi)=>{
+    const card=h("div",{class:"card"});
+    if(g.context)card.append(h("div",{class:"ctx"},g.context));
+    if(g.script){
+      const sc=h("div",{class:"script"},g.script.map(l=>(l.s==="F"?"女：":"男：")+l.t).join("\n"));sc.hidden=true;
+      card.append(h("div",{class:"row"},
+        h("button",{class:"btn alt",onclick:()=>speak(g.script,2)},"▶ Play (twice)"),
+        h("button",{class:"btn alt",onclick:()=>speechSynthesis.cancel()},"■ Stop"),
+        h("button",{class:"btn alt",onclick:()=>{sc.hidden=!sc.hidden;}},"Show / hide script")),sc);
+    }
+    g.questions.forEach((q,qi)=>{
+      num++;total++;const key=gi+"-"+qi;
+      card.append(h("div",{class:"q"},num+". "+q.q));
+      const btns=q.options.map((o,oi)=>{
+        const b=h("button",{class:"opt",onclick:()=>{if(d.checked)return;d.picks[key]=oi;btns.forEach((x,xi)=>x.classList.toggle("pick",xi===oi));}},"ABCD"[oi]+". "+o);
+        const p=d.picks[key];
+        if(d.checked){if(oi===q.answer)b.classList.add("ok");else if(oi===p)b.classList.add("bad");}
+        else if(p===oi)b.classList.add("pick");
+        return b;});
+      btns.forEach(b=>card.append(b));
+      if(d.checked){if(d.picks[key]===q.answer)right++;card.append(h("div",{class:"exp"},q.explanation||""));}
+    });
+    box.append(card);
+  });
+  const foot=h("div",{class:"card"});
+  if(d.checked)foot.append(h("div",{class:"score"},"Score: "+right+" / "+total+" ("+Math.round(100*right/total)+"%)"));
+  foot.append(h("div",{class:"row"},d.checked?h("button",{class:"btn alt",onclick:()=>{d.picks={};d.checked=false;d.left=d.secs;d.running=false;view();}},"Retry section"):h("button",{class:"btn",onclick:()=>finish(cur)},"Check answers")));
+  box.append(foot);
+}
+const TIME={kanji:[6,10],goi:[6,10],bunpou:[8,13],dokkai:[12,20],kikitori:[10,18]};
+const KEY="jlpt-n4-v1";
+let tick=null,hist=[];
+try{hist=JSON.parse(localStorage.getItem(KEY))||[];}catch(e){hist=[];}
+function note(m,e){$("status").textContent=m;$("status").className=e?"err":"msg";}
+function mm(s){s=Math.max(s,0);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
+function pauseAll(){clearInterval(tick);tick=null;Object.values(data).forEach(d=>d.running=false);}
+function timerUI(){
+  const b=$("timerbox");b.textContent="";const d=data[cur];if(!d)return;
+  d.el=h("span",{class:"time"+(d.left<=60&&!d.checked?" low":"")},mm(d.left));
+  const k=cur;
+  b.append(h("div",{class:"card timer"},h("span",{class:"msg"},"Time left"),d.el,
+    d.checked?h("span",{class:"msg"},d.left<=0?"Time’s up":"Finished"):h("button",{class:"btn alt",onclick:()=>{
+      const was=d.running;pauseAll();
+      if(!was){d.running=true;tick=setInterval(()=>{d.left--;if(d.el){d.el.textContent=mm(d.left);d.el.classList.toggle("low",d.left<=60);}if(d.left<=0)finish(k);},1000);}
+      timerUI();}},d.running?"Pause":(d.left<d.secs?"Resume":"Start timer"))));
+}
+function record(k,d){
+  let right=0,total=0;
+  d.groups.forEach((g,gi)=>g.questions.forEach((q,qi)=>{total++;if(d.picks[gi+"-"+qi]===q.answer)right++;}));
+  hist.push({t:Date.now(),k,right,total,used:d.secs-Math.max(d.left,0),size:d.size});hist=hist.slice(-200);
+  try{localStorage.setItem(KEY,JSON.stringify(hist));}catch(e){}
+}
+function finish(k){const d=data[k];if(!d||d.checked)return;pauseAll();d.checked=true;d.left=Math.max(d.left,0);record(k,d);if(cur===k)view();}
+function progressView(box){
+  $("timerbox").textContent="";
+  if(!hist.length){box.append(h("div",{class:"card msg"},"No attempts yet. Press ‘Check answers’ in any section to start tracking."));return;}
+  const tb=h("table",{},h("tr",{},...["Section","Tries","Avg","Best","Last 10"].map(x=>h("th",{},x))));
+  let weak=null,wa=2;
+  Object.keys(SEC).forEach(k=>{
+    const r=hist.filter(x=>x.k===k);
+    if(!r.length){tb.append(h("tr",{},h("td",{},SEC[k].label),h("td",{},"0"),h("td",{},"–"),h("td",{},"–"),h("td",{},"")));return;}
+    const pc=r.map(x=>x.right/x.total),avg=pc.reduce((a,b)=>a+b,0)/pc.length;
+    if(avg<wa){wa=avg;weak=k;}
+    const bars=h("div",{class:"hist"});
+    r.slice(-10).forEach(x=>{const i=h("i",{title:new Date(x.t).toLocaleDateString()+": "+x.right+"/"+x.total});i.style.height=Math.max(4,Math.round(48*x.right/x.total))+"px";bars.append(i);});
+    tb.append(h("tr",{},h("td",{},SEC[k].label),h("td",{},String(r.length)),h("td",{},Math.round(avg*100)+"%"),h("td",{},Math.round(Math.max(...pc)*100)+"%"),h("td",{},bars)));
+  });
+  const card=h("div",{class:"card"},tb);
+  if(weak)card.append(h("p",{class:"msg"},"Weakest section so far: "+SEC[weak].label+". Generate a new set and retry it."));
+  let armed=false;const rb=h("button",{class:"btn alt"},"Clear history");
+  rb.onclick=()=>{if(!armed){armed=true;rb.textContent="Click again to confirm";return;}hist=[];try{localStorage.removeItem(KEY);}catch(e){}view();};
+  card.append(h("div",{class:"row"},rb));box.append(card);
+}
+function pr(m){$("paper").className=m;setTimeout(()=>{try{window.print();}catch(e){}},50);}
+function buildPaper(){
+  const p=$("paper"),keys=Object.keys(SEC).filter(k=>data[k]);
+  if(!keys.length){note("Generate at least one section first.",1);return false;}
+  p.textContent="";p.className="b";
+  const qp=h("div",{class:"qp"}),key=h("div",{class:"key"});
+  qp.append(h("h1",{},"JLPT N4 Model Paper"),h("p",{},"Name: ____________________   Date: ____________"));
+  key.append(h("h1",{},"Answer Key"));
+  keys.forEach(k=>{
+    const d=data[k];let n=0;
+    qp.append(h("h2",{},SEC[k].label+"  ("+Math.round(d.secs/60)+" min)"));
+    key.append(h("h2",{},SEC[k].label));
+    d.groups.forEach(g=>{
+      if(g.context)qp.append(h("div",{class:"ctx"},g.context));
+      if(g.script){
+        qp.append(h("div",{class:"msg"},"♪ Listening: the script is read aloud (see answer key)."));
+        key.append(h("div",{class:"script"},"Script: "+g.script.map(l=>(l.s==="F"?"女：":"男：")+l.t).join(" ／ ")));
+      }
+      g.questions.forEach(q=>{
+        n++;
+        qp.append(h("div",{class:"pq"},h("div",{},n+". "+q.q),...q.options.map((o,i)=>h("div",{class:"po"},"ABCD"[i]+". "+o))));
+        key.append(h("div",{class:"pq"},n+". "+"ABCD"[q.answer]+" — "+(q.explanation||"")));
+      });
+    });
+  });
+  p.append(h("div",{class:"noprint row"},
+    h("button",{class:"btn",onclick:()=>pr("q")},"Print question paper"),
+    h("button",{class:"btn",onclick:()=>pr("k")},"Print answer key"),
+    h("button",{class:"btn alt",onclick:()=>pr("b")},"Print both"),
+    h("button",{class:"btn alt",onclick:()=>document.body.classList.remove("printing")},"Close"),
+    h("span",{class:"msg"},"If a button does nothing, press Ctrl/Cmd+P. Only the paper prints.")),qp,key);
+  return true;
+}
+$("prt").onclick=()=>{if(buildPaper()){document.body.classList.add("printing");window.scrollTo(0,0);}};
+$("gen").onclick=()=>run([cur==="progress"?"kanji":cur]);
+$("all").onclick=()=>run(Object.keys(SEC));
+tabs();view();
+(async()=>{try{sample=await claude.use("sample");}catch(e){sample=null;}})();
+</script>
+</body>
+</html>
